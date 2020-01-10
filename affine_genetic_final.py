@@ -5,10 +5,11 @@ import matplotlib.pyplot as plt
 import iteround
 import random
 
-
+# Nalozimo slike, mr1 predstavlja referencno, mr2 pa plavajoco sliko
 mr1 = np.array(im.open('mr1.png'))
 mr2 = np.array(im.open('mr2.png'))
 
+# Prikaz slik na grafu
 plt.figure()
 plt.subplot(1,2,1)
 plt.imshow(mr1, cmap='gray')
@@ -18,34 +19,62 @@ plt.show()
 
 
 def normalizeImage(iImage, type = 'whitening'):
+    '''
+    Funkcija za normalizacijo vhodne slike.
+    :param iImage: vhodna slika za normalizacijo
+    :param type: tip standardizacije
+    :return: standardizirana slika
+    '''
     if type == 'whitening':
         oImage = (iImage - np.mean(iImage)) / np.std(iImage)
     elif type == 'range':
         oImage = (iImage - np.min(iImage)) / (np.max(iImage) - np.min(iImage))
     return oImage
 
-# gen oblike [Tx, Ty, rot]
 
 def show_im(image):
+    '''
+    Funkcija za prikaz slike v oknu
+    :param image: slika za prikaz
+    :return: None
+    '''
     plt.figure()
     plt.imshow(image, cmap='gray')
     plt.show()
 
 
+# gen oblike [Tx, Ty, rot]
 def generate_cromosomes(num, rng=3):
+    '''
+    Funkcija za nakljucno generacijo kromosomov
+    :param num: stevilo kromosomov
+    :param rng: interval zacetnih vrednosti kromosomov, uniformna distribucija
+    :return: matrika kromosomov
+    '''
     a = np.random.random((num, 3)) * 2 * rng - rng
     return a
 
 
 def select_mating(population, fit, num_parents):
-    # inicializacija prazne matrike staršev
+    '''
+    Funkcija za izbor starsev iz populacije preko najboljsega fitnesa.
+    :param population: kromosomi v trenutni populaciji
+    :param fit: vektor fitnesov vhodnih kromosomov
+    :param num_parents: stevilo kromosomov, ki jih bomo izlocili kot starse
+    :return: kromosomi, ki so izbrani kot starsi
+    '''
     # indeksi najmanjsih elementov kritejrijske funkcije
     min_idxs = abs(fit).argsort(axis=0)[:num_parents]
-    # vrnemo 4 najboljse primerke za starse
+    # vrnemo N najboljsih primerkov za starse
     return population[min_idxs].reshape(num_parents, 3), fit[min_idxs].reshape(num_parents, 1)
 
 
 def fitness(cromosomes):
+    '''
+    Funkcija za izracun vrednosti fitnesa vhodnih kromosomov
+    :param cromosomes: vhodni kromosomi v dani iteraciji
+    :return: vektor z vrednostmi fitnesa
+    '''
     st_krom, st_param = cromosomes.shape
     val = np.zeros((st_krom, 1), dtype=np.float)
     for i in range(0, st_krom):
@@ -55,6 +84,7 @@ def fitness(cromosomes):
     return val
 
 
+# Ruletno kolo kot altnernativa N najboljsih po fitnesu, se ne uporablja, vseeno pa sem pustil funckijo
 def roulette(population, fit, num_parents=4):
     # izracunamo P_i
     fitness_rel = (fit) / np.sum(fit) * 100
@@ -81,17 +111,25 @@ def roulette(population, fit, num_parents=4):
 
 
 def crossover(parents):
+    '''
+    Funkcija za operacijo krizanja kromosomov. Iz nabora kromosomov nakljucno izbere 2, nato jima izmenja gene,
+    kjer je lokacija genov za vsak par kromosomov nakljucna.
+    :param parents: kromosomi starsev
+    :return: krizani kromosomi starsev -> potomci
+    '''
+    # inicializacija matrike potomcev
     children = np.zeros((int(parents.shape[0] / 2), 3), dtype=np.float)
-    # koliko genov zamenjamo
+    # oblika matrike kromosomov starsev
     n_parents, n_genes = parents.shape
+    # vektor indeksov starsev
     parents_ids = np.arange(n_parents)
-    # nakljucni vrstni red starsev
+    # nakljucni vrstni red matrike indeksov starsev
     np.random.shuffle(parents_ids)
     for i in range(int(n_parents / 2)):
-        #shape, max val
+        # vektor nakljucnih indeksov kromosomov, ki jih bomo zamenjali. Imamo 3 parametre, torej je tudi ta vektor
+        # dolzine 3, kjer 1 predstavlja lokacijo za imenjavo, 0 pa ne izmenja gena na dani lokaciji.
+        # nakljucno izbranima starsema izmenjamo gene in rezultat shranimo v matriko potomcev
         n_swap = np.random.randint(1, 3, 1)[0]
-        # toDo nakljucna zamenjava
-        # nakljucne lokacije za zamenjavo IDja
         idx_swap = np.array(random.sample(range(n_genes), n_swap))
         children[i, :] = parents[i*2, :]
         children[i, idx_swap] = parents[i*2 + 1, idx_swap]
@@ -99,8 +137,20 @@ def crossover(parents):
 
 
 def mutate(population, max_mut, fit):
+    '''
+    Funkcija za mutacijo danih kromosomov, kjer ima vsak gen v kromosomu verjetnost mutacije 1/2, interval mutacije pa
+    je definiran preko vhodnega parametra max_mut, ki se z vecanjem stevila iteracij ter v primeru enakih rezultatov
+    manjsa za fino poravnavo.
+    :param population: dana populacija kromosomov v trenutni iteraciji
+    :param max_mut: absolutna vrednost maksimalne mutacije gena
+    :param fit: fitnes funkcija vhodnih kromosomov
+    :return: mutirana populacija
+    '''
+    # matrika nakljucnih lokacij mutacije za celotno populacijo
     mutate_binary = np.random.randint(0, 2, population.shape)
     mutate_range = np.ones(population.shape)
+    # malce zastarela implementacija, ki sicer omogoca neposredni vpliv fitnesa izbranega kromosoma na mutacijo
+    # koncna implementacija ne spreminja mutacije glede na fitnes kromosoma.
     for i in range(population.shape[0]):
         mutate_range[i, :] = mutate_range[i, :] * max_mut#* fit[i, 0]
     mutation = np.multiply(mutate_binary, mutate_range)
@@ -108,19 +158,28 @@ def mutate(population, max_mut, fit):
     return population + mutation
 
 
-
 def optimize():
+    '''
+    Glavna funkcija za optimizacijo poravnave referencne ter plavajoce slike.
+    :return: matrika optimalnih parametrov, vektor minimalnih fitnesov v vsaki iteraciji za namene graficnega prikaza
+    '''
+    # absolutna vrednost maksimalne mutacije genov
     max_mut = 5
+    # spremenljivka, ki spremlja kdaj spremenimo max_mut, da se ne zgodi, da bi jo spremenili neposredno v dveh iteracijah
     flag_count = 0
+    # stevec iteracij
     count = 0
+    # izmisljena zacetna vrednost kriterijske funkcije, ce zelimo optimizirati dokler ni vrednost k.f. < zeljena k.f.
     fmin = 10
+    # vektor minimalnih vrednosti kriterijske funkcije v vsakem koraku
     f_hist = []
+    # inicializacija kromosomov
     population = generate_cromosomes(40)
     fit = fitness(population)
     while count < 150:# and fmin > 0.1:
+        # genetske operacije na populaciji kromosomov
         parents, tmp = select_mating(population, fit, num_parents=20)
         offspring = crossover(parents)
-        # appendamo novo generacijo
         population = mutate(population, 1, fit)
         new_gen = np.append(population, offspring, axis=0)
         new_gen = np.append(new_gen, parents, axis=0)
@@ -129,12 +188,14 @@ def optimize():
         count += 1
         fmin = fit.min()
         f_hist.append(fmin)
+        # index kromosoma z najboljsim fitnesom
         idx = np.where(fit[:, 0] == fmin)[0][0]
+        # parametri kromosoma z najboljsim fitnesom
         T_opt = population[idx, :]
         print("Count: ", count, " fmin: ", fmin, " maxmut ", max_mut)
-
+        # spreminjanje abs. vrednosti maksimalne mutacije gena glede na zadnjih 10 meritev.
         if (np.array(f_hist[-10:]).max() - np.array(f_hist[-10:]).min()) < 1 ** -3 and len(f_hist) > 50 and flag_count >= 10:
-            max_mut *= 1.0
+            max_mut *= 0.9
             flag_count = 0
         flag_count += 1
 
@@ -143,9 +204,11 @@ def optimize():
 
 opt_crom, f_hist = optimize()
 
+# Transformacija plavajoce slike glede na izracunane optimalne parametre
 tmpT = fun.transform_affine_2d(trans=(opt_crom[0], opt_crom[1]), rot=np.deg2rad(opt_crom[2]))
 im_t = fun.im_transform_2d(mr2, tmpT)
 
+# Graficni prikaz rezultatov
 plt.figure()
 plt.subplot(1,3,1)
 plt.imshow(mr1, cmap='gray')
