@@ -10,6 +10,8 @@ random
 iteround
 skimage
 
+# Knjiznice namestite z ukazom v cmd-ju: pip install library_name. Pip ukaz mora biti dodan v system path-u.
+
 # Struktura direktorija
 1) funkcije.py
 Pomembne funkcije za transformacijo in obdelavo slik.
