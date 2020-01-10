@@ -8,6 +8,7 @@ scipy
 Pillow
 random
 iteround
+skimage
 
 # Struktura direktorija
 1) funkcije.py
